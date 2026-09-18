@@ -9,3 +9,8 @@ venv/
 htmlcov/
 .coverage
 *.egg-info/
+
+# Local editor caches -- not part of the project; HF Spaces rejects binary
+# files in pushes, and these contain no project source anyway.
+.puku/
+.claude/
