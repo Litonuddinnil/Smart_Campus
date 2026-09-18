@@ -3,10 +3,13 @@ title: GridWise API
 emoji: 🔋
 colorFrom: yellow
 colorTo: green
-sdk: docker
+sdk: gradio
+sdk_version: "5.9.1"
+app_file: app.py
 app_port: 7860
 pinned: false
 ---
+
 
 # GridWise API — BUP CSE Fest 2026 Hackathon (Online Preliminary)
 
@@ -171,10 +174,19 @@ against your deployed URL before submission.
 
 ## Deploying to Hugging Face Spaces
 
-This repo is ready to deploy as a **Docker-SDK Space** with no GPU:
+This repo deploys with **no GPU and no payment method on file**. Hugging
+Face's **Docker SDK** now requires a verified card even for the free CPU
+tier; the **Gradio SDK** does not, so that's what this README's frontmatter
+uses (`sdk: gradio`). A Gradio-SDK Space simply runs `python app.py` on port
+7860 — it does not require the app to actually build a Gradio UI, so our
+Flask API runs under it completely unchanged. (If your account *does* have
+Docker SDK enabled, switch the frontmatter to `sdk: docker` and follow the
+same steps — the included `Dockerfile` works identically and is the more
+conventional choice.)
 
-1. Create a new Space at [huggingface.co/new-space](https://huggingface.co/new-space),
-   SDK = **Docker**, hardware = the free **CPU basic** tier.
+1. Create a new Space at [huggingface.co/new-space](https://huggingface.co/new-space):
+   SDK = **Gradio**, hardware = the free **CPU Basic** tier, visibility =
+   **Public** (the judge must reach it with no login).
 2. Push this repository's contents to the Space's git remote (Spaces are git
    repos):
    ```bash
@@ -184,10 +196,9 @@ This repo is ready to deploy as a **Docker-SDK Space** with no GPU:
 3. In the Space's **Settings → Variables and secrets**, add:
    - `LLM_PROVIDER` = `groq` (or your chosen provider)
    - `LLM_API_KEY` = your key, added as a **secret**, never as plain a variable
-4. The Space builds the `Dockerfile` and starts the container automatically.
-   It already exposes port `7860` (the Spaces default) and binds to
-   `0.0.0.0`, matching the `app_port: 7860` declared in this README's YAML
-   header above.
+4. The Space installs `requirements.txt` and runs `app.py` automatically.
+   It listens on port `7860` and binds to `0.0.0.0`, matching the `app_port`
+   declared in this README's YAML header above.
 5. Once it's live, your judge-facing base URL is
    `https://<your-username>-<your-space>.hf.space`. Verify with:
    ```bash
@@ -198,6 +209,15 @@ The optimizer (`scipy.optimize.linprog`, HiGHS) and the guardrail/validator
 layers are pure CPU code with no heavy ML dependency, so the free CPU-only
 tier is sufficient — the only network call the service makes per request is
 the one LLM interpretation call.
+
+**Note on the dev server under Gradio SDK:** without Docker SDK, the Space
+can't run our `gunicorn` production command from the Dockerfile — it just
+executes `app.py`, which falls back to Flask's built-in server (now run
+with `threaded=True`, see `app.py`). This comfortably handles the judge's
+request pattern but is not meant for heavy concurrent load; the Docker
+fallback image (below) is the production-grade path and is what the
+rubric's "Docker fallback image" deliverable actually requires regardless
+of which SDK hosts the live endpoint.
 
 ## Docker fallback (organizer-run, without Hugging Face)
 
