@@ -3,10 +3,7 @@ title: GridWise API
 emoji: 🔋
 colorFrom: yellow
 colorTo: green
-sdk: gradio
-sdk_version: "5.9.1"
-python_version: "3.12"
-app_file: app.py
+sdk: docker
 app_port: 7860
 pinned: false
 ---
@@ -19,8 +16,9 @@ operator notes, deterministically validates the extracted directives, solves a
 true linear program for the lowest-cost valid 24-hour grid/solar/battery
 schedule, and independently replays that schedule before responding.
 
-Runs on a single CPU core (no GPU required) and is designed to deploy for
-free on a Hugging Face Space — see [Deploying to Hugging Face Spaces](#deploying-to-hugging-face-spaces).
+Runs on a single CPU core (no GPU required) and deploys for free on a
+Hugging Face Space via the **Docker SDK** (this README's frontmatter
+requests `sdk: docker`) — see [Deploying to Hugging Face Spaces](#deploying-to-hugging-face-spaces).
 
 ## Architecture
 
@@ -186,8 +184,9 @@ same steps — the included `Dockerfile` works identically and is the more
 conventional choice.)
 
 1. Create a new Space at [huggingface.co/new-space](https://huggingface.co/new-space):
-   SDK = **Gradio**, hardware = the free **CPU Basic** tier, visibility =
-   **Public** (the judge must reach it with no login).
+   SDK = **Docker**, hardware = the free **CPU Basic** tier, visibility =
+   **Public** (the judge must reach it with no login). The Space's
+   `README.md` frontmatter above already requests `sdk: docker`.
 2. Push this repository's contents to the Space's git remote (Spaces are git
    repos):
    ```bash
@@ -197,9 +196,13 @@ conventional choice.)
 3. In the Space's **Settings → Variables and secrets**, add:
    - `LLM_PROVIDER` = `groq` (or your chosen provider)
    - `LLM_API_KEY` = your key, added as a **secret**, never as plain a variable
-4. The Space installs `requirements.txt` and runs `app.py` automatically.
-   It listens on port `7860` and binds to `0.0.0.0`, matching the `app_port`
-   declared in this README's YAML header above.
+4. The Space builds the included `Dockerfile` (gunicorn + port 7860) and
+   listens on `0.0.0.0:7860`, matching the `app_port` declared in this
+   README's YAML header above. (Earlier versions of this README used
+   `sdk: gradio` and ran `app.py` directly under Flask's dev server with
+   `threaded=True`; the HF Spaces runtime monitor now treats a missing
+   `@spaces.GPU` decorated function as a startup failure, so the Docker
+   path is the reliable one.)
 5. Once it's live, your judge-facing base URL is
    `https://<your-username>-<your-space>.hf.space`. Verify with:
    ```bash
@@ -211,14 +214,9 @@ layers are pure CPU code with no heavy ML dependency, so the free CPU-only
 tier is sufficient — the only network call the service makes per request is
 the one LLM interpretation call.
 
-**Note on the dev server under Gradio SDK:** without Docker SDK, the Space
-can't run our `gunicorn` production command from the Dockerfile — it just
-executes `app.py`, which falls back to Flask's built-in server (now run
-with `threaded=True`, see `app.py`). This comfortably handles the judge's
-request pattern but is not meant for heavy concurrent load; the Docker
-fallback image (below) is the production-grade path and is what the
-rubric's "Docker fallback image" deliverable actually requires regardless
-of which SDK hosts the live endpoint.
+The Space runs gunicorn from the `Dockerfile` (4 threads, one worker) so
+concurrent judge requests are handled by the production WSGI server rather
+than Flask's dev server.
 
 ## Docker fallback (organizer-run, without Hugging Face)
 
