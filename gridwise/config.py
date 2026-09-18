@@ -61,7 +61,13 @@ PROVIDER_PRESETS = {
     # --- free / generous free tiers -------------------------------------
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
-        "default_model": "llama-3.3-70b-versatile",
+        # llama-3.3-70b-versatile was deprecated by Groq on 2026-08-16;
+        # openai/gpt-oss-120b is Groq's own stated replacement
+        # (https://console.groq.com/docs/deprecations). Provider model ids
+        # drift over time -- if this starts returning HTTP 404, check that
+        # page again and override via LLM_MODEL rather than assuming this
+        # default is still current.
+        "default_model": "openai/gpt-oss-120b",
         "api_style": "openai",
         "key_env_hint": "GROQ_API_KEY",
     },
